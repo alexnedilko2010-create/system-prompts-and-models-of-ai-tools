@@ -7,7 +7,9 @@ import { TOKEN_PROGRAM_ID } from '@solana/spl-token';
 // Константы
 const BONK_FUN_PROGRAM_ID = 'BonkFunProgramId...'; // Замените на реальный ID
 const RAYDIUM_PROGRAM_ID = 'RaydiumProgramId...'; // Замените на реальный ID
-const MIGRATION_THRESHOLD = 69000; // $69,000 market cap для graduation
+const MIGRATION_THRESHOLD = 69000; // $69,000 USD market cap для автоматической миграции
+const PLATFORM_FEE_PERCENT = 0.01; // 1% комиссия платформы
+const RAYDIUM_FEE_PERCENT = 0.002; // 0.2% комиссия после миграции
 
 class BonkFunMigration {
     constructor(connection, wallet) {
