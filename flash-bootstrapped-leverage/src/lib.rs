@@ -9,6 +9,7 @@ pub mod state;
 pub mod errors;
 pub mod utils;
 pub mod integrations;
+pub mod strategies;
 
 use instructions::*;
 use state::*;
