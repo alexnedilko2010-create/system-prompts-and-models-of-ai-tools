@@ -1,0 +1,35 @@
+{
+  "name": "flash-leveraged-token-scheme",
+  "version": "1.0.0",
+  "description": "Flash loan leveraged token scheme on Solana",
+  "main": "index.js",
+  "scripts": {
+    "build": "anchor build",
+    "test": "anchor test --skip-local-validator",
+    "deploy": "anchor deploy",
+    "demo": "ts-node scripts/leverage_scheme.ts",
+    "lint": "eslint . --ext .ts,.js",
+    "format": "prettier --write ."
+  },
+  "keywords": [
+    "solana",
+    "defi",
+    "flash-loan",
+    "leverage",
+    "anchor"
+  ],
+  "author": "DeFi Developer",
+  "license": "MIT",
+  "dependencies": {
+    "@coral-xyz/anchor": "^0.28.0",
+    "@solana/spl-token": "^0.3.8",
+    "@solana/web3.js": "^1.78.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "typescript": "^5.0.0",
+    "ts-node": "^10.9.0",
+    "eslint": "^8.0.0",
+    "prettier": "^3.0.0"
+  }
+}
