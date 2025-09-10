@@ -184,11 +184,13 @@ pub mod flash_leveraged_scheme {
         Ok(())
     }
 
-    /// Вывод позиции через кастомный токен
+    /// Вывод позиции через кастомный токен с премией
     pub fn exit_position_via_custom_token(
         ctx: Context<ExitPosition>,
         token_amount: u64,
     ) -> Result<()> {
+        let token_pool = &ctx.accounts.token_pool;
+        
         // Сжигаем кастомные токены
         let cpi_accounts = token::Burn {
             mint: ctx.accounts.custom_token_mint.to_account_info(),
@@ -199,15 +201,98 @@ pub mod flash_leveraged_scheme {
         let cpi_ctx = CpiContext::new(cpi_program, cpi_accounts);
         token::burn(cpi_ctx, token_amount)?;
 
-        // Рассчитываем количество SOL для вывода
-        let exchange_rate = 1000; // 1 SOL = 1000 кастомных токенов
-        let sol_amount = token_amount / exchange_rate;
+        // Рассчитываем количество SOL для вывода с премией
+        let base_exchange_rate = 1000; // 1 SOL = 1000 кастомных токенов
+        let premium_rate = token_pool.exit_premium; // Премия при выводе (в базисных пунктах)
+        
+        let base_sol_amount = token_amount / base_exchange_rate;
+        let premium = base_sol_amount
+            .checked_mul(premium_rate as u64)
+            .unwrap()
+            .checked_div(10000)
+            .unwrap();
+        
+        let total_sol_amount = base_sol_amount + premium;
 
         // Переводим SOL пользователю
-        **ctx.accounts.sol_vault.to_account_info().try_borrow_mut_lamports()? -= sol_amount;
-        **ctx.accounts.user.to_account_info().try_borrow_mut_lamports()? += sol_amount;
+        **ctx.accounts.sol_vault.to_account_info().try_borrow_mut_lamports()? -= total_sol_amount;
+        **ctx.accounts.user.to_account_info().try_borrow_mut_lamports()? += total_sol_amount;
 
-        msg!("Exited position: {} tokens for {} SOL", token_amount, sol_amount);
+        msg!("Exited position: {} tokens for {} SOL (with {}% premium)", 
+             token_amount, total_sol_amount, premium_rate as f64 / 100.0);
+        Ok(())
+    }
+
+    /// Покупка максимального количества кастомного токена на всю позицию
+    pub fn buy_max_custom_tokens(
+        ctx: Context<BuyMaxCustomTokens>,
+        sol_amount: u64,
+    ) -> Result<()> {
+        // Переводим ВСЕ SOL в пул
+        let ix = solana_program::system_instruction::transfer(
+            &ctx.accounts.user.key(),
+            &ctx.accounts.sol_vault.key(),
+            sol_amount,
+        );
+        solana_program::program::invoke(
+            &ix,
+            &[
+                ctx.accounts.user.to_account_info(),
+                ctx.accounts.sol_vault.to_account_info(),
+                ctx.accounts.system_program.to_account_info(),
+            ],
+        )?;
+
+        // Рассчитываем максимальное количество токенов
+        let exchange_rate = 1000; // 1 SOL = 1000 кастомных токенов
+        let token_amount = sol_amount * exchange_rate;
+
+        // Минтим МАКСИМАЛЬНОЕ количество токенов пользователю
+        let seeds = &[b"token_authority", &[ctx.accounts.token_pool.authority_bump]];
+        let signer = &[&seeds[..]];
+
+        let cpi_accounts = token::MintTo {
+            mint: ctx.accounts.custom_token_mint.to_account_info(),
+            to: ctx.accounts.user_token_account.to_account_info(),
+            authority: ctx.accounts.token_authority.to_account_info(),
+        };
+        let cpi_program = ctx.accounts.token_program.to_account_info();
+        let cpi_ctx = CpiContext::new_with_signer(cpi_program, cpi_accounts, signer);
+        token::mint_to(cpi_ctx, token_amount)?;
+
+        msg!("Bought MAXIMUM: {} SOL converted to {} custom tokens", sol_amount, token_amount);
+        Ok(())
+    }
+
+    /// Установка премии при выводе (только владелец токена)
+    pub fn set_exit_premium(
+        ctx: Context<SetExitPremium>,
+        premium_rate: u16,
+    ) -> Result<()> {
+        require!(premium_rate <= 5000, ErrorCode::ExcessivePremium); // Максимум 50%
+        
+        let token_pool = &mut ctx.accounts.token_pool;
+        token_pool.exit_premium = premium_rate;
+        
+        msg!("Exit premium set to {}%", premium_rate as f64 / 100.0);
+        Ok(())
+    }
+
+    /// Инициализация токен-пула с настройками премии
+    pub fn initialize_token_pool(
+        ctx: Context<InitializeTokenPool>,
+        authority_bump: u8,
+        initial_premium: u16,
+    ) -> Result<()> {
+        let token_pool = &mut ctx.accounts.token_pool;
+        token_pool.authority = ctx.accounts.authority.key();
+        token_pool.custom_token_mint = ctx.accounts.custom_token_mint.key();
+        token_pool.sol_vault = ctx.accounts.sol_vault.key();
+        token_pool.authority_bump = authority_bump;
+        token_pool.exit_premium = initial_premium;
+        token_pool.total_volume = 0;
+        
+        msg!("Token pool initialized with {}% exit premium", initial_premium as f64 / 100.0);
         Ok(())
     }
 }
@@ -237,6 +322,8 @@ pub struct TokenPool {
     pub custom_token_mint: Pubkey,
     pub sol_vault: Pubkey,
     pub authority_bump: u8,
+    pub exit_premium: u16,      // Премия при выводе в базисных пунктах
+    pub total_volume: u64,      // Общий объем торгов
 }
 
 // Контексты для инструкций
@@ -374,6 +461,8 @@ pub struct ExitPosition<'info> {
     #[account(mut)]
     pub user: Signer<'info>,
     
+    pub token_pool: Account<'info, TokenPool>,
+    
     #[account(mut)]
     pub custom_token_mint: Account<'info, Mint>,
     
@@ -387,6 +476,65 @@ pub struct ExitPosition<'info> {
     pub token_program: Program<'info, Token>,
 }
 
+#[derive(Accounts)]
+pub struct BuyMaxCustomTokens<'info> {
+    #[account(mut)]
+    pub user: Signer<'info>,
+    
+    pub token_pool: Account<'info, TokenPool>,
+    
+    /// CHECK: This is safe because we only read from it
+    #[account(mut)]
+    pub sol_vault: AccountInfo<'info>,
+    
+    pub custom_token_mint: Account<'info, Mint>,
+    
+    #[account(mut)]
+    pub user_token_account: Account<'info, TokenAccount>,
+    
+    /// CHECK: This is the token authority PDA
+    pub token_authority: AccountInfo<'info>,
+    
+    pub token_program: Program<'info, Token>,
+    pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+pub struct SetExitPremium<'info> {
+    #[account(mut)]
+    pub authority: Signer<'info>,
+    
+    #[account(
+        mut,
+        has_one = authority,
+    )]
+    pub token_pool: Account<'info, TokenPool>,
+}
+
+#[derive(Accounts)]
+#[instruction(authority_bump: u8)]
+pub struct InitializeTokenPool<'info> {
+    #[account(
+        init,
+        payer = authority,
+        space = 8 + 32 + 32 + 32 + 1 + 2 + 8,
+        seeds = [b"token_pool", custom_token_mint.key().as_ref()],
+        bump = authority_bump,
+    )]
+    pub token_pool: Account<'info, TokenPool>,
+    
+    #[account(mut)]
+    pub authority: Signer<'info>,
+    
+    pub custom_token_mint: Account<'info, Mint>,
+    
+    /// CHECK: This will be the SOL vault
+    pub sol_vault: AccountInfo<'info>,
+    
+    pub system_program: Program<'info, System>,
+    pub rent: Sysvar<'info, Rent>,
+}
+
 // Коды ошибок
 #[error_code]
 pub enum ErrorCode {
@@ -398,4 +546,6 @@ pub enum ErrorCode {
     UnauthorizedBorrower,
     #[msg("Slippage tolerance exceeded")]
     SlippageTooHigh,
+    #[msg("Exit premium rate is too high (max 50%)")]
+    ExcessivePremium,
 }

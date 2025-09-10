@@ -8,6 +8,7 @@
     "test": "anchor test --skip-local-validator",
     "deploy": "anchor deploy",
     "demo": "ts-node scripts/leverage_scheme.ts",
+    "demo-enhanced": "ts-node scripts/enhanced_leverage_scheme.ts",
     "lint": "eslint . --ext .ts,.js",
     "format": "prettier --write ."
   },
