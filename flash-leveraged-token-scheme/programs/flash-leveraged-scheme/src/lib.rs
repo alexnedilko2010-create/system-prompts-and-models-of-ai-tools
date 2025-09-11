@@ -2,6 +2,9 @@ use anchor_lang::prelude::*;
 use anchor_spl::token::{self, Token, TokenAccount, Transfer, Mint};
 use solana_program::program_pack::Pack;
 
+pub mod collateral_swap;
+pub use collateral_swap::*;
+
 declare_id!("Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS");
 
 #[program]
@@ -295,6 +298,150 @@ pub mod flash_leveraged_scheme {
         msg!("Token pool initialized with {}% exit premium", initial_premium as f64 / 100.0);
         Ok(())
     }
+
+    /// Инициализация lending pool для залогового кредитования
+    pub fn initialize_lending_pool(
+        ctx: Context<InitializeLendingPool>,
+        ltv_ratio: u16,
+        collateral_ratio: u16,
+    ) -> Result<()> {
+        let lending_pool = &mut ctx.accounts.lending_pool;
+        lending_pool.authority = ctx.accounts.authority.key();
+        lending_pool.usdc_mint = ctx.accounts.usdc_mint.key();
+        lending_pool.custom_token_mint = ctx.accounts.custom_token_mint.key();
+        lending_pool.collateral_vault = ctx.accounts.collateral_vault.key();
+        lending_pool.total_deposited = 0;
+        lending_pool.total_borrowed = 0;
+        lending_pool.ltv_ratio = ltv_ratio;
+        lending_pool.collateral_ratio = collateral_ratio;
+        
+        msg!("Lending pool initialized with {}% LTV and {}% collateral ratio", 
+             ltv_ratio as f64 / 100.0, collateral_ratio as f64 / 100.0);
+        Ok(())
+    }
+
+    /// Размещение залога и получение кастомных токенов
+    pub fn deposit_collateral_for_tokens(
+        ctx: Context<CollateralSwap>,
+        collateral_amount: u64,
+        min_custom_tokens: u64,
+    ) -> Result<()> {
+        CollateralSwap::swap_collateral_to_tokens(ctx, collateral_amount, min_custom_tokens)
+    }
+
+    /// Займ против залога
+    pub fn borrow_against_collateral(
+        ctx: Context<CollateralSwap>,
+        borrow_amount: u64,
+    ) -> Result<()> {
+        CollateralSwap::borrow_against_collateral(ctx, borrow_amount)
+    }
+
+    /// Вывод залога путем сжигания токенов
+    pub fn withdraw_collateral_by_burning_tokens(
+        ctx: Context<WithdrawCollateral>,
+        custom_token_amount: u64,
+    ) -> Result<()> {
+        WithdrawCollateral::withdraw_collateral(ctx, custom_token_amount)
+    }
+
+    /// Комплексная операция: залог + займ + покупка токенов в одной транзакции
+    pub fn atomic_collateral_leverage(
+        ctx: Context<AtomicCollateralLeverage>,
+        collateral_amount: u64,
+        borrow_amount: u64,
+        additional_token_purchase: u64,
+    ) -> Result<()> {
+        let lending_pool = &mut ctx.accounts.lending_pool;
+        
+        // 1. Размещаем залог
+        let transfer_collateral = CpiContext::new(
+            ctx.accounts.token_program.to_account_info(),
+            Transfer {
+                from: ctx.accounts.user_usdc_account.to_account_info(),
+                to: ctx.accounts.collateral_vault.to_account_info(),
+                authority: ctx.accounts.user.to_account_info(),
+            },
+        );
+        token::transfer(transfer_collateral, collateral_amount)?;
+        
+        // 2. Проверяем LTV для займа
+        let max_borrow = collateral_amount
+            .checked_mul(lending_pool.ltv_ratio as u64)
+            .unwrap()
+            .checked_div(10000)
+            .unwrap();
+        
+        require!(borrow_amount <= max_borrow, ErrorCode::ExceedsLTV);
+        
+        // 3. Выдаем займ
+        let pool_seeds = &[
+            b"lending_pool",
+            lending_pool.usdc_mint.as_ref(),
+            &[ctx.bumps.lending_pool],
+        ];
+        let signer = &[&pool_seeds[..]];
+        
+        let transfer_loan = CpiContext::new_with_signer(
+            ctx.accounts.token_program.to_account_info(),
+            Transfer {
+                from: ctx.accounts.pool_usdc_vault.to_account_info(),
+                to: ctx.accounts.user_usdc_account.to_account_info(),
+                authority: ctx.accounts.lending_pool.to_account_info(),
+            },
+            signer,
+        );
+        token::transfer(transfer_loan, borrow_amount)?;
+        
+        // 4. Минтим кастомные токены за залог
+        let tokens_for_collateral = collateral_amount
+            .checked_mul(lending_pool.collateral_ratio as u64)
+            .unwrap()
+            .checked_div(10000)
+            .unwrap();
+        
+        let mint_seeds = &[
+            b"mint_authority",
+            &[ctx.bumps.mint_authority],
+        ];
+        let mint_signer = &[&mint_seeds[..]];
+        
+        let mint_for_collateral = CpiContext::new_with_signer(
+            ctx.accounts.token_program.to_account_info(),
+            token::MintTo {
+                mint: ctx.accounts.custom_token_mint.to_account_info(),
+                to: ctx.accounts.user_custom_token_account.to_account_info(),
+                authority: ctx.accounts.mint_authority.to_account_info(),
+            },
+            mint_signer,
+        );
+        token::mint_to(mint_for_collateral, tokens_for_collateral)?;
+        
+        // 5. Покупаем дополнительные токены на заемные средства
+        if additional_token_purchase > 0 {
+            let mint_additional = CpiContext::new_with_signer(
+                ctx.accounts.token_program.to_account_info(),
+                token::MintTo {
+                    mint: ctx.accounts.custom_token_mint.to_account_info(),
+                    to: ctx.accounts.user_custom_token_account.to_account_info(),
+                    authority: ctx.accounts.mint_authority.to_account_info(),
+                },
+                mint_signer,
+            );
+            token::mint_to(mint_additional, additional_token_purchase * 1000)?; // 1 USDC = 1000 CUSTOM
+        }
+        
+        // 6. Обновляем состояние пула
+        lending_pool.total_deposited += collateral_amount;
+        lending_pool.total_borrowed += borrow_amount;
+        
+        let total_custom_tokens = tokens_for_collateral + (additional_token_purchase * 1000);
+        
+        msg!("Atomic leverage: {} collateral, {} borrowed, {} custom tokens minted",
+             collateral_amount, borrow_amount, total_custom_tokens);
+        
+        Ok(())
+    }
 }
 
 // Структуры данных
@@ -535,6 +682,73 @@ pub struct InitializeTokenPool<'info> {
     pub rent: Sysvar<'info, Rent>,
 }
 
+#[derive(Accounts)]
+pub struct InitializeLendingPool<'info> {
+    #[account(
+        init,
+        payer = authority,
+        space = 8 + 32 + 32 + 32 + 32 + 8 + 8 + 2 + 2,
+        seeds = [b"lending_pool", usdc_mint.key().as_ref()],
+        bump,
+    )]
+    pub lending_pool: Account<'info, LendingPool>,
+    
+    #[account(mut)]
+    pub authority: Signer<'info>,
+    
+    pub usdc_mint: Account<'info, Mint>,
+    pub custom_token_mint: Account<'info, Mint>,
+    
+    #[account(
+        init,
+        payer = authority,
+        token::mint = usdc_mint,
+        token::authority = lending_pool,
+    )]
+    pub collateral_vault: Account<'info, TokenAccount>,
+    
+    pub token_program: Program<'info, Token>,
+    pub system_program: Program<'info, System>,
+    pub rent: Sysvar<'info, Rent>,
+}
+
+#[derive(Accounts)]
+pub struct AtomicCollateralLeverage<'info> {
+    #[account(mut)]
+    pub user: Signer<'info>,
+    
+    #[account(
+        mut,
+        seeds = [b"lending_pool", lending_pool.usdc_mint.as_ref()],
+        bump,
+    )]
+    pub lending_pool: Account<'info, LendingPool>,
+    
+    #[account(mut)]
+    pub user_usdc_account: Account<'info, TokenAccount>,
+    
+    #[account(mut)]
+    pub user_custom_token_account: Account<'info, TokenAccount>,
+    
+    #[account(mut)]
+    pub custom_token_mint: Account<'info, Mint>,
+    
+    #[account(mut)]
+    pub collateral_vault: Account<'info, TokenAccount>,
+    
+    #[account(mut)]
+    pub pool_usdc_vault: Account<'info, TokenAccount>,
+    
+    /// CHECK: This is the mint authority PDA
+    #[account(
+        seeds = [b"mint_authority"],
+        bump,
+    )]
+    pub mint_authority: AccountInfo<'info>,
+    
+    pub token_program: Program<'info, Token>,
+}
+
 // Коды ошибок
 #[error_code]
 pub enum ErrorCode {
@@ -548,4 +762,6 @@ pub enum ErrorCode {
     SlippageTooHigh,
     #[msg("Exit premium rate is too high (max 50%)")]
     ExcessivePremium,
+    #[msg("Borrow amount exceeds LTV ratio")]
+    ExceedsLTV,
 }
