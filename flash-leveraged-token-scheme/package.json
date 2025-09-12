@@ -22,6 +22,7 @@
     "demo-control": "ts-node scripts/self_controlled_demo.ts",
     "demo-infinite": "ts-node scripts/infinite_loop_demo.ts",
     "demo-simple": "ts-node scripts/simple_schemes_demo.ts",
+    "demo-loop": "ts-node scripts/simple_flash_loop_demo.ts",
     "lint": "eslint . --ext .ts,.js",
     "format": "prettier --write ."
   },
