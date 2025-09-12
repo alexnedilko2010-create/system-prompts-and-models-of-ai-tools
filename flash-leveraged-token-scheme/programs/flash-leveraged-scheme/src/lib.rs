@@ -29,6 +29,9 @@ pub use fast_scaling::*;
 pub mod flash_pump;
 pub use flash_pump::*;
 
+pub mod self_controlled;
+pub use self_controlled::*;
+
 declare_id!("Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS");
 
 #[program]
@@ -1439,6 +1442,118 @@ pub mod flash_leveraged_scheme {
         
         if roi >= 1000 { // 10x ROI
             msg!("🎉 CAMPAIGN HAS 10x+ ROI POTENTIAL!");
+        }
+        
+        Ok(())
+    }
+
+    /// 🎮 ИНИЦИАЛИЗАЦИЯ SELF-CONTROLLED СИСТЕМЫ
+    pub fn initialize_self_controlled_system(
+        ctx: Context<InitializeSelfControlled>,
+        initial_capital: u64,
+        profit_extraction_rate: u16,
+        bump: u8,
+    ) -> Result<()> {
+        SelfControlledSystem::initialize_self_controlled_system(ctx, initial_capital, profit_extraction_rate, bump)
+    }
+
+    /// 🔄 ВЫПОЛНЕНИЕ ПОЛНОГО CONTROLLED ЦИКЛА
+    pub fn execute_complete_controlled_cycle(
+        ctx: Context<ExecuteControlledCycle>,
+        cycle_budget: u64,
+    ) -> Result<()> {
+        SelfControlledSystem::execute_complete_controlled_cycle(ctx, cycle_budget)
+    }
+
+    /// 🎭 СОЗДАНИЕ ARTIFICIAL DEMAND БЕЗ ВНЕШНИХ ПОЛЬЗОВАТЕЛЕЙ
+    pub fn create_artificial_demand_cycle(
+        ctx: Context<CreateArtificialDemand>,
+        demand_intensity: u8,
+        sustainability_hours: u16,
+    ) -> Result<()> {
+        SelfControlledSystem::create_artificial_demand_cycle(ctx, demand_intensity, sustainability_hours)
+    }
+
+    /// ♾️ INFINITE YIELD LOOP EXECUTION
+    pub fn execute_infinite_yield_loop(
+        ctx: Context<ExecuteControlledCycle>,
+        initial_amount: u64,
+        loop_cycles: u8,
+    ) -> Result<()> {
+        SelfControlledSystem::execute_infinite_yield_loop(ctx, initial_amount, loop_cycles)
+    }
+
+    /// 🤖 СОЗДАНИЕ PROFIT MACHINE
+    pub fn create_self_sustaining_profit_machine(
+        ctx: Context<CreateProfitMachine>,
+        machine_capital: u64,
+        target_daily_profit: u64,
+    ) -> Result<()> {
+        SelfControlledSystem::create_profit_machine(ctx, machine_capital, target_daily_profit)
+    }
+
+    /// ⚡ BOOTSTRAP ЭКОСИСТЕМЫ С FLASH LOANS
+    pub fn bootstrap_ecosystem_with_flash_loans(
+        ctx: Context<BootstrapWithFlash>,
+        flash_loan_amount: u64,
+        bootstrap_intensity: u8,
+    ) -> Result<()> {
+        SelfControlledSystem::bootstrap_ecosystem_with_flash(ctx, flash_loan_amount, bootstrap_intensity)
+    }
+
+    /// 🎯 ULTIMATE SELF-CONTROLLED SCHEME
+    pub fn execute_ultimate_self_controlled_scheme(
+        ctx: Context<UltimateSelfControlled>,
+        initial_capital: u64,
+        target_multiplier: u32, // 100 = 100x, 1000 = 1000x
+        control_intensity: u8,  // 1-10 уровень контроля
+    ) -> Result<()> {
+        msg!("🎯 EXECUTING ULTIMATE SELF-CONTROLLED SCHEME");
+        msg!("Capital: {}, Target: {}x, Control intensity: {}/10",
+             initial_capital, target_multiplier, control_intensity);
+        
+        let system = &mut ctx.accounts.controlled_system;
+        
+        // Фаза 1: Bootstrap с flash loans (20% времени)
+        let bootstrap_flash = initial_capital * 20; // 20x flash loan
+        let bootstrap_value = bootstrap_flash * control_intensity as u64 / 5; // 0.2x-2x efficiency
+        
+        msg!("Phase 1 - Bootstrap: {} flash loan → {} ecosystem value", 
+             bootstrap_flash, bootstrap_value);
+        
+        // Фаза 2: Artificial demand generation (30% времени)
+        let demand_budget = bootstrap_value * 30 / 100;
+        let generated_demand = demand_budget * control_intensity as u64 * 2; // 2x-20x multiplier
+        
+        msg!("Phase 2 - Demand generation: {} budget → {} artificial demand", 
+             demand_budget, generated_demand);
+        
+        // Фаза 3: Profit extraction (40% времени)
+        let extraction_base = generated_demand;
+        let extraction_rate = 500 + (control_intensity as u16 * 100); // 5-15% extraction
+        let extracted_profit = extraction_base * extraction_rate as u64 / 10000;
+        
+        msg!("Phase 3 - Profit extraction: {} base → {} extracted ({}% rate)",
+             extraction_base, extracted_profit, extraction_rate as f64 / 100.0);
+        
+        // Фаза 4: Scaling и reinvestment (10% времени)
+        let reinvestment = extracted_profit * 80 / 100; // 80% reinvest
+        let final_value = initial_capital + extracted_profit - reinvestment + reinvestment;
+        
+        let achieved_multiplier = final_value / initial_capital;
+        
+        system.total_value_locked = final_value;
+        system.total_profit_extracted += extracted_profit;
+        system.current_phase = ControlPhase::Domination;
+        
+        msg!("🎉 ULTIMATE SELF-CONTROLLED SCHEME COMPLETED!");
+        msg!("Initial: {}, Final: {}, Achieved multiplier: {}x", 
+             initial_capital, final_value, achieved_multiplier);
+        
+        if achieved_multiplier >= target_multiplier as u64 {
+            msg!("🚀 TARGET MULTIPLIER ACHIEVED!");
+        } else {
+            msg!("📊 Target: {}x, Achieved: {}x", target_multiplier, achieved_multiplier);
         }
         
         Ok(())
