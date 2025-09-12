@@ -24,6 +24,7 @@
     "demo-simple": "ts-node scripts/simple_schemes_demo.ts",
     "demo-loop": "ts-node scripts/simple_flash_loop_demo.ts",
     "demo-essence": "ts-node scripts/simple_flash_loop_demo.ts",
+    "demo-ultra": "ts-node scripts/ultra_simple_demo.ts",
     "lint": "eslint . --ext .ts,.js",
     "format": "prettier --write ."
   },
