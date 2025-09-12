@@ -27,6 +27,7 @@
     "demo-ultra": "ts-node scripts/ultra_simple_demo.ts",
     "demo-flip": "ts-node scripts/one_shot_flip_demo.ts",
     "test-yield": "ts-node scripts/yield_optimization_test.ts",
+    "demo-self-liquidation": "ts-node scripts/self_liquidation_demo.ts",
     "lint": "eslint . --ext .ts,.js",
     "format": "prettier --write ."
   },
