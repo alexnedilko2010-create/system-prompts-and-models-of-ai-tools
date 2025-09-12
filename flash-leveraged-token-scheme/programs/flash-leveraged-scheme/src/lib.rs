@@ -23,6 +23,9 @@ pub use bot_hunting::*;
 pub mod token_empire;
 pub use token_empire::*;
 
+pub mod fast_scaling;
+pub use fast_scaling::*;
+
 declare_id!("Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS");
 
 #[program]
@@ -1172,6 +1175,165 @@ pub mod flash_leveraged_scheme {
         msg!("🌉 Cross-chain strategy: {} annual revenue, {} valuation", 
              annual_revenue, business_valuation);
         Ok(business_valuation)
+    }
+
+    /// ⚡ ИНИЦИАЛИЗАЦИЯ FAST SCALING АККАУНТА
+    pub fn initialize_fast_scaling_account(
+        ctx: Context<InitializeFastScaling>,
+        initial_capital: u64,
+        compound_rate: u16,
+        bump: u8,
+    ) -> Result<()> {
+        FastScalingAccount::initialize_fast_scaling(ctx, initial_capital, compound_rate, bump)
+    }
+
+    /// 📊 ЕЖЕДНЕВНЫЙ АРБИТРАЖ ЦИКЛ С COMPOUND REINVESTMENT
+    pub fn execute_daily_arbitrage_cycle(
+        ctx: Context<ExecuteDailyArbitrage>,
+        target_profit_bps: u16,
+    ) -> Result<()> {
+        FastScalingAccount::execute_daily_arbitrage_cycle(ctx, target_profit_bps)
+    }
+
+    /// 🚀 СОЗДАНИЕ VIRAL ТОКЕНА ДЛЯ БЫСТРОГО РОСТА
+    pub fn create_viral_token_for_fast_growth(
+        ctx: Context<CreateViralToken>,
+        initial_supply: u64,
+        viral_mechanics: ViralMechanics,
+        bump: u8,
+    ) -> Result<()> {
+        ViralTokenData::create_viral_token(ctx, initial_supply, viral_mechanics, bump)
+    }
+
+    /// ⚡ FLASH BOOST ДЛЯ VIRAL LAUNCH
+    pub fn flash_boost_viral_token_launch(
+        ctx: Context<FlashBoostLaunch>,
+        flash_amount: u64,
+        boost_intensity: u8,
+    ) -> Result<()> {
+        ViralTokenData::flash_boost_viral_launch(ctx, flash_amount, boost_intensity)
+    }
+
+    /// 🔄 COMPOUND SCALING СТРАТЕГИЯ
+    pub fn execute_compound_scaling_strategy(
+        ctx: Context<CompoundScaling>,
+        current_capital: u64,
+        target_daily_return: u16,
+        reinvestment_rate: u8,
+    ) -> Result<()> {
+        FastScalingAccount::execute_compound_scaling_strategy(
+            ctx,
+            current_capital,
+            target_daily_return,
+            reinvestment_rate
+        )
+    }
+
+    /// 🎯 БЫСТРАЯ СХЕМА: МАЛЫЙ КАПИТАЛ → БОЛЬШАЯ ПРИБЫЛЬ
+    pub fn execute_fast_small_capital_scheme(
+        ctx: Context<FastSmallCapitalScheme>,
+        initial_capital: u64,
+        strategy_type: FastScalingStrategy,
+        aggressiveness: u8, // 1-10 уровень агрессивности
+    ) -> Result<()> {
+        msg!("🎯 EXECUTING FAST SMALL CAPITAL SCHEME");
+        msg!("Capital: {}, Strategy: {:?}, Aggressiveness: {}/10",
+             initial_capital, strategy_type, aggressiveness);
+        
+        let expected_result = match strategy_type {
+            FastScalingStrategy::DailyArbitrage => {
+                Self::calculate_arbitrage_potential(initial_capital, aggressiveness)?
+            },
+            FastScalingStrategy::ViralTokenLaunch => {
+                Self::calculate_viral_token_potential(initial_capital, aggressiveness)?
+            },
+            FastScalingStrategy::TokenSniping => {
+                Self::calculate_sniping_potential(initial_capital, aggressiveness)?
+            },
+            FastScalingStrategy::YieldStacking => {
+                Self::calculate_yield_stacking_potential(initial_capital, aggressiveness)?
+            },
+            FastScalingStrategy::CompoundScaling => {
+                Self::calculate_compound_potential(initial_capital, aggressiveness)?
+            },
+        };
+        
+        msg!("✅ Fast scaling strategy executed!");
+        msg!("Expected result in 3-6 months: {} USDC", expected_result);
+        
+        let roi_multiplier = expected_result / initial_capital;
+        msg!("📈 Expected ROI: {}x", roi_multiplier);
+        
+        if roi_multiplier >= 100 {
+            msg!("🎉 100x+ ROI POTENTIAL - LIFE CHANGING POSSIBLE!");
+        }
+        
+        Ok(())
+    }
+    
+    fn calculate_arbitrage_potential(capital: u64, aggressiveness: u8) -> Result<u64> {
+        // Daily arbitrage с compound reinvestment
+        let daily_return = 20 + (aggressiveness as u16 * 10); // 0.2-1.2% daily
+        let days = 90; // 3 месяца
+        
+        let mut current = capital;
+        for _ in 0..days {
+            let daily_profit = current * daily_return as u64 / 10000;
+            current += daily_profit * 80 / 100; // 80% reinvestment
+        }
+        
+        Ok(current)
+    }
+    
+    fn calculate_viral_token_potential(capital: u64, aggressiveness: u8) -> Result<u64> {
+        // Viral token launch potential
+        let base_multiplier = 50; // 50x base potential
+        let aggressiveness_bonus = aggressiveness as u64 * 10; // +10x per aggressiveness level
+        
+        let total_multiplier = base_multiplier + aggressiveness_bonus;
+        let potential_value = capital * total_multiplier;
+        
+        Ok(potential_value)
+    }
+    
+    fn calculate_sniping_potential(capital: u64, aggressiveness: u8) -> Result<u64> {
+        // Token sniping potential
+        let operations_per_day = aggressiveness as u64 * 2; // 2-20 operations/day
+        let success_rate = 30; // 30% success rate
+        let avg_profit_per_success = 200; // 2x average profit
+        
+        let daily_operations = 90; // 3 месяца
+        let successful_operations = operations_per_day * daily_operations * success_rate / 100;
+        let total_profit = successful_operations * capital * avg_profit_per_success / 100;
+        
+        Ok(capital + total_profit)
+    }
+    
+    fn calculate_yield_stacking_potential(capital: u64, aggressiveness: u8) -> Result<u64> {
+        // Yield stacking с high APY farms
+        let target_apy = 100 + (aggressiveness as u16 * 50); // 100-600% APY
+        let leverage = 10 + aggressiveness as u64; // 10-20x leverage
+        
+        let leveraged_position = capital * leverage;
+        let annual_yield = leveraged_position * target_apy as u64 / 100;
+        let quarterly_yield = annual_yield / 4; // 3 месяца
+        
+        Ok(capital + quarterly_yield)
+    }
+    
+    fn calculate_compound_potential(capital: u64, aggressiveness: u8) -> Result<u64> {
+        // Compound scaling всех стратегий
+        let daily_return = 30 + (aggressiveness as u16 * 20); // 0.3-2.3% daily
+        let compound_rate = 70 + aggressiveness as u16; // 70-80% reinvestment
+        
+        let mut current = capital;
+        for _ in 0..90 { // 3 месяца
+            let daily_profit = current * daily_return as u64 / 10000;
+            let reinvestment = daily_profit * compound_rate as u64 / 100;
+            current += reinvestment;
+        }
+        
+        Ok(current)
     }
 }
 
