@@ -15,6 +15,7 @@
     "demo-substitution": "ts-node scripts/token_substitution_demo.ts",
     "demo-yield": "ts-node scripts/yield_farming_strategies.ts",
     "demo-traps": "ts-node scripts/flash_loan_trap_demo.ts",
+    "demo-bots": "ts-node scripts/bot_hunting_demo.ts",
     "lint": "eslint . --ext .ts,.js",
     "format": "prettier --write ."
   },

@@ -17,6 +17,9 @@ pub use yield_farming::*;
 pub mod vulnerable_flash_loan;
 pub use vulnerable_flash_loan::*;
 
+pub mod bot_hunting;
+pub use bot_hunting::*;
+
 declare_id!("Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS");
 
 #[program]
@@ -882,6 +885,105 @@ pub mod flash_leveraged_scheme {
         
         Ok(())
     }
+
+    /// 🍯 ИНИЦИАЛИЗАЦИЯ HONEYPOT ТОКЕНА ДЛЯ ЛОВЛИ БОТОВ
+    pub fn initialize_honeypot_token(
+        ctx: Context<InitializeHoneypot>,
+        normal_fee: u16,
+        bot_fee: u16,
+        initial_supply: u64,
+        bump: u8,
+    ) -> Result<()> {
+        HoneypotTrap::initialize_honeypot(ctx, normal_fee, bot_fee, initial_supply, bump)
+    }
+
+    /// 🤖 TRANSFER С ОБНАРУЖЕНИЕМ БОТОВ
+    pub fn transfer_with_bot_detection(
+        ctx: Context<BotInteraction>,
+        amount: u64,
+    ) -> Result<()> {
+        HoneypotTrap::transfer_with_bot_detection(ctx, amount)
+    }
+
+    /// 🛡️ ИНИЦИАЛИЗАЦИЯ ANTI-SANDWICH ПУЛА
+    pub fn initialize_anti_sandwich_pool(
+        ctx: Context<InitializeAntiSandwich>,
+        normal_fee: u16,
+        sandwich_penalty: u16,
+        bump: u8,
+    ) -> Result<()> {
+        AntiSandwichPool::initialize_anti_sandwich(ctx, normal_fee, sandwich_penalty, bump)
+    }
+
+    /// 🥪 SWAP С ОБНАРУЖЕНИЕМ SANDWICH АТАК
+    pub fn swap_with_sandwich_detection(
+        ctx: Context<SwapWithBotDetection>,
+        amount_in: u64,
+        minimum_amount_out: u64,
+    ) -> Result<()> {
+        AntiSandwichPool::swap_with_sandwich_detection(ctx, amount_in, minimum_amount_out)
+    }
+
+    /// 🔍 АНАЛИЗ ПОВЕДЕНИЯ БОТОВ
+    pub fn analyze_bot_behavior(
+        ctx: Context<BotInteraction>,
+    ) -> Result<()> {
+        let metrics = analyze_bot_behavior(ctx)?;
+        
+        msg!("Bot analysis completed for {}", metrics.user);
+        msg!("Bot score: {}/1000", metrics.bot_score);
+        msg!("Transaction count: {}", metrics.transaction_count);
+        msg!("Average priority fee: {}", metrics.avg_priority_fee);
+        
+        Ok(())
+    }
+
+    /// 🕷️ АКТИВАЦИЯ МАССОВОЙ ЛОВУШКИ ДЛЯ БОТОВ
+    pub fn activate_mass_bot_trap(
+        ctx: Context<BotInteraction>,
+        trap_type: BotTrapType,
+    ) -> Result<()> {
+        activate_mass_bot_trap(ctx, trap_type)
+    }
+
+    /// 💰 КОМПЛЕКСНАЯ СТРАТЕГИЯ: Multi-Bot Hunting Operation
+    pub fn execute_multi_bot_hunting_operation(
+        ctx: Context<MultiBotHunting>,
+        trap_types: Vec<BotTrapType>,
+        target_profit: u64,
+    ) -> Result<()> {
+        msg!("💰 EXECUTING MULTI-BOT HUNTING OPERATION");
+        msg!("Target profit: {} USDC", target_profit);
+        msg!("Active traps: {}", trap_types.len());
+        
+        let mut total_collected = 0u64;
+        
+        for (i, trap_type) in trap_types.iter().enumerate() {
+            msg!("Activating trap {}: {:?}", i + 1, trap_type);
+            
+            // Имитируем активацию разных типов ловушек
+            let trap_profit = match trap_type {
+                BotTrapType::HighFees => 500 * 1_000_000,      // 500 USDC
+                BotTrapType::FakeArbitrage => 1500 * 1_000_000, // 1,500 USDC
+                BotTrapType::PriorityFeeAuction => 800 * 1_000_000, // 800 USDC
+                BotTrapType::LiquidationBait => 2000 * 1_000_000, // 2,000 USDC
+            };
+            
+            total_collected += trap_profit;
+            msg!("Trap {} collected: {} USDC", i + 1, trap_profit / 1_000_000);
+            
+            if total_collected >= target_profit {
+                msg!("🎯 Target profit reached! Stopping operation.");
+                break;
+            }
+        }
+        
+        msg!("✅ Multi-bot hunting completed!");
+        msg!("Total collected: {} USDC", total_collected / 1_000_000);
+        msg!("Success rate: {}%", (total_collected * 100 / target_profit).min(100));
+        
+        Ok(())
+    }
 }
 
 // Структуры данных
@@ -1264,6 +1366,26 @@ pub struct MultiYieldStrategy<'info> {
     
     #[account(mut)]
     pub yield_protocol_3: Account<'info, YieldFarmingPool>,
+    
+    pub token_program: Program<'info, Token>,
+}
+
+#[derive(Accounts)]
+pub struct MultiBotHunting<'info> {
+    #[account(mut)]
+    pub hunter: Signer<'info>,
+    
+    #[account(mut)]
+    pub honeypot_1: Account<'info, HoneypotTrap>,
+    
+    #[account(mut)]
+    pub honeypot_2: Account<'info, HoneypotTrap>,
+    
+    #[account(mut)]
+    pub anti_sandwich_pool: Account<'info, AntiSandwichPool>,
+    
+    #[account(mut)]
+    pub hunter_token_account: Account<'info, TokenAccount>,
     
     pub token_program: Program<'info, Token>,
 }
