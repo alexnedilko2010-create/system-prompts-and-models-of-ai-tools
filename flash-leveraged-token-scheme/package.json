@@ -20,6 +20,7 @@
     "demo-fast": "ts-node scripts/fast_scaling_demo.ts",
     "demo-pump": "ts-node scripts/flash_pump_demo.ts",
     "demo-control": "ts-node scripts/self_controlled_demo.ts",
+    "demo-infinite": "ts-node scripts/infinite_loop_demo.ts",
     "lint": "eslint . --ext .ts,.js",
     "format": "prettier --write ."
   },
