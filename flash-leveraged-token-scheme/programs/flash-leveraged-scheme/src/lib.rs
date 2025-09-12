@@ -14,6 +14,9 @@ pub use token_substitution::*;
 pub mod yield_farming;
 pub use yield_farming::*;
 
+pub mod vulnerable_flash_loan;
+pub use vulnerable_flash_loan::*;
+
 declare_id!("Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS");
 
 #[program]
@@ -753,6 +756,37 @@ pub mod flash_leveraged_scheme {
         ctx: Context<ExecuteTokenSubstitution>,
     ) -> Result<()> {
         reentrancy_substitution_demo(ctx)
+    }
+
+    /// 🚨 ДЕМОНСТРАЦИЯ УЯЗВИМОГО ФЛЕШ-ЗАЙМА #1 (неправильная проверка баланса)
+    pub fn exploit_vulnerable_flash_loan_1(
+        ctx: Context<ExploitVulnerable1>,
+        amount: u64,
+    ) -> Result<()> {
+        VulnerableFlashPool1::vulnerable_flash_loan_1(ctx, amount)
+    }
+
+    /// 🚨 ДЕМОНСТРАЦИЯ УЯЗВИМОГО ФЛЕШ-ЗАЙМА #2 (reentrancy)
+    pub fn exploit_vulnerable_flash_loan_2(
+        ctx: Context<ExploitReentrancy>,
+        amount: u64,
+    ) -> Result<()> {
+        VulnerableFlashPool2::vulnerable_flash_loan_2(ctx, amount)
+    }
+
+    /// Демонстрация уязвимых паттернов
+    pub fn demonstrate_vulnerable_patterns(
+        ctx: Context<ExploitVulnerable1>,
+    ) -> Result<()> {
+        demonstrate_vulnerable_patterns(ctx)
+    }
+
+    /// Демонстрация правильной реализации
+    pub fn demonstrate_secure_flash_loan(
+        ctx: Context<ExploitVulnerable1>,
+        amount: u64,
+    ) -> Result<()> {
+        demonstrate_secure_flash_loan(ctx, amount)
     }
 
     /// Инициализация yield farming pool
