@@ -32,6 +32,9 @@ pub use flash_pump::*;
 pub mod self_controlled;
 pub use self_controlled::*;
 
+pub mod minimal_schemes;
+pub use minimal_schemes::*;
+
 declare_id!("Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS");
 
 #[program]
@@ -1557,6 +1560,124 @@ pub mod flash_leveraged_scheme {
         }
         
         Ok(())
+    }
+
+    /// ⚡ СОЗДАНИЕ МИНИМАЛЬНОЙ СХЕМЫ (ОДИН КОНТРАКТ)
+    pub fn create_minimal_scheme(
+        ctx: Context<CreateMinimalScheme>,
+        scheme_type: MinimalSchemeType,
+        multiplier_a: u16,
+        multiplier_b: u16,
+        fee_rate: u16,
+        bump: u8,
+    ) -> Result<()> {
+        MinimalScheme::create_minimal_scheme(ctx, scheme_type, multiplier_a, multiplier_b, fee_rate, bump)
+    }
+
+    /// 🔄 ВЫПОЛНЕНИЕ МИНИМАЛЬНОЙ ОПЕРАЦИИ
+    pub fn execute_minimal_operation(
+        ctx: Context<ExecuteMinimalOperation>,
+        operation_type: MinimalOperationType,
+        amount: u64,
+    ) -> Result<()> {
+        MinimalScheme::execute_minimal_operation(ctx, operation_type, amount)
+    }
+
+    /// 🤖 АВТОМАТИЗИРОВАННОЕ ВЫПОЛНЕНИЕ МИНИМАЛЬНОЙ СХЕМЫ
+    pub fn auto_execute_minimal_scheme(
+        ctx: Context<AutoExecuteMinimal>,
+        target_daily_profit: u64,
+        max_operations_per_day: u8,
+    ) -> Result<()> {
+        MinimalScheme::auto_execute_minimal_scheme(ctx, target_daily_profit, max_operations_per_day)
+    }
+
+    /// ⚡ УЛЬТРА-ПРОСТАЯ СХЕМА (ВСЕ В ОДНОЙ ФУНКЦИИ)
+    pub fn execute_ultra_simple_scheme(
+        ctx: Context<UltraSimpleScheme>,
+        flash_amount: u64,
+    ) -> Result<()> {
+        execute_ultra_simple_scheme(ctx, flash_amount)
+    }
+
+    /// 🎯 МИНИМАЛЬНАЯ СХЕМА С МАКСИМАЛЬНЫМ ЭФФЕКТОМ
+    pub fn execute_minimal_maximum_effect_scheme(
+        ctx: Context<MinimalMaxEffect>,
+        initial_capital: u64,
+        desired_multiplier: u16, // 200 = 2x, 1000 = 10x
+        simplicity_level: u8,    // 1-10 (10 = максимальная простота)
+    ) -> Result<()> {
+        msg!("🎯 EXECUTING MINIMAL MAXIMUM EFFECT SCHEME");
+        msg!("Capital: {}, Target: {}x, Simplicity: {}/10",
+             initial_capital, desired_multiplier as f64 / 100.0, simplicity_level);
+        
+        // Выбираем схему на основе simplicity level
+        let chosen_scheme = match simplicity_level {
+            1..=3 => MinimalSchemeType::AllInOne,      // Сложная но эффективная
+            4..=6 => MinimalSchemeType::ArbitrageBot,  // Средняя сложность
+            7..=8 => MinimalSchemeType::FlashLoop,     // Простая
+            9..=10 => MinimalSchemeType::TokenFlip,    // Максимально простая
+            _ => MinimalSchemeType::FlashLoop,
+        };
+        
+        msg!("Selected scheme: {:?}", chosen_scheme);
+        
+        // Рассчитываем parameters для достижения desired multiplier
+        let required_operations = Self::calculate_operations_for_multiplier(
+            initial_capital,
+            desired_multiplier,
+            chosen_scheme
+        )?;
+        
+        let expected_timeframe = match simplicity_level {
+            1..=3 => required_operations / 50,  // 50 операций в день (сложная схема)
+            4..=6 => required_operations / 20,  // 20 операций в день
+            7..=8 => required_operations / 10,  // 10 операций в день
+            _ => required_operations / 5,       // 5 операций в день (простая схема)
+        };
+        
+        msg!("📊 SCHEME ANALYSIS:");
+        msg!("Required operations: {}, Expected timeframe: {} days", 
+             required_operations, expected_timeframe);
+        
+        // Прогноз результатов
+        let profit_per_operation = initial_capital * 150 / 10000; // 1.5% per operation
+        let total_expected_profit = profit_per_operation * required_operations as u64;
+        let final_capital = initial_capital + total_expected_profit;
+        
+        let achieved_multiplier = final_capital * 100 / initial_capital;
+        
+        msg!("💰 EXPECTED RESULTS:");
+        msg!("Profit per operation: {}, Total profit: {}", profit_per_operation, total_expected_profit);
+        msg!("Final capital: {}, Achieved multiplier: {}x", final_capital, achieved_multiplier as f64 / 100.0);
+        
+        if achieved_multiplier >= desired_multiplier as u64 {
+            msg!("🎉 TARGET MULTIPLIER ACHIEVABLE!");
+        } else {
+            msg!("📊 Target: {}x, Achievable: {}x", desired_multiplier as f64 / 100.0, achieved_multiplier as f64 / 100.0);
+        }
+        
+        Ok(())
+    }
+    
+    fn calculate_operations_for_multiplier(
+        capital: u64,
+        target_multiplier: u16,
+        scheme_type: MinimalSchemeType,
+    ) -> Result<u32> {
+        let target_profit = capital * (target_multiplier as u64 - 100) / 100;
+        
+        let profit_per_operation = match scheme_type {
+            MinimalSchemeType::FlashLoop => capital * 200 / 10000,     // 2% per operation
+            MinimalSchemeType::TokenFlip => capital * 500 / 10000,     // 5% per operation (higher risk)
+            MinimalSchemeType::ArbitrageBot => capital * 120 / 10000,  // 1.2% per operation
+            MinimalSchemeType::YieldExtract => capital * 300 / 10000,  // 3% per operation
+            MinimalSchemeType::AllInOne => capital * 250 / 10000,      // 2.5% per operation
+        };
+        
+        let required_operations = target_profit / profit_per_operation.max(1);
+        
+        Ok(required_operations as u32)
     }
 }
 

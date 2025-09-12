@@ -32,6 +32,7 @@
 ### ✅ Легальные стратегии:
 ```bash
 npm run demo-yield          # Yield farming с флеш-займами (СТАБИЛЬНАЯ ПРИБЫЛЬ)
+npm run demo-simple         # Простые схемы без инфраструктуры (БЫСТРЫЙ СТАРТ)
 npm run demo-bots           # Ловля MEV ботов (СРЕДНЯЯ ПРИБЫЛЬ)
 npm run demo-empire         # Life-changing стратегии (МАКСИМАЛЬНАЯ ПРИБЫЛЬ)
 npm run demo-fast           # Быстрое масштабирование малого капитала (АГРЕССИВНАЯ)
