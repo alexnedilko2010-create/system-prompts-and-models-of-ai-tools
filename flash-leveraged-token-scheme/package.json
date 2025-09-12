@@ -11,6 +11,7 @@
     "demo-enhanced": "ts-node scripts/enhanced_leverage_scheme.ts",
     "demo-corrected": "ts-node scripts/corrected_leverage_scheme.ts",
     "demo-technical": "ts-node scripts/technical_collateral_demo.ts",
+    "demo-extraction": "ts-node scripts/collateral_extraction_demo.ts",
     "lint": "eslint . --ext .ts,.js",
     "format": "prettier --write ."
   },
