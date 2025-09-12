@@ -26,6 +26,9 @@ pub use token_empire::*;
 pub mod fast_scaling;
 pub use fast_scaling::*;
 
+pub mod flash_pump;
+pub use flash_pump::*;
+
 declare_id!("Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS");
 
 #[program]
@@ -1334,6 +1337,111 @@ pub mod flash_leveraged_scheme {
         }
         
         Ok(current)
+    }
+
+    /// 🚀 ИНИЦИАЛИЗАЦИЯ PUMP ТОКЕНА
+    pub fn initialize_pump_token(
+        ctx: Context<InitializePumpToken>,
+        total_supply: u64,
+        team_percentage: u8,
+        initial_price: u64,
+        bump: u8,
+    ) -> Result<()> {
+        PumpTokenData::initialize_pump_token(ctx, total_supply, team_percentage, initial_price, bump)
+    }
+
+    /// ⚡ ВЫПОЛНЕНИЕ FLASH PUMP BOOST
+    pub fn execute_flash_pump_boost(
+        ctx: Context<ExecuteFlashPump>,
+        flash_loan_amount: u64,
+        target_price_multiplier: u16,
+        pump_intensity: u8,
+    ) -> Result<()> {
+        PumpTokenData::execute_flash_pump_boost(ctx, flash_loan_amount, target_price_multiplier, pump_intensity)
+    }
+
+    /// 🔥 TRIGGER FOMO CASCADE
+    pub fn trigger_fomo_cascade(
+        ctx: Context<TriggerFOMO>,
+        fomo_multiplier: u16,
+        fomo_duration: i64,
+    ) -> Result<()> {
+        PumpTokenData::trigger_fomo_cascade(ctx, fomo_multiplier, fomo_duration)
+    }
+
+    /// 💰 СТРАТЕГИЧЕСКИЙ EXIT
+    pub fn execute_strategic_pump_exit(
+        ctx: Context<StrategicExit>,
+        exit_percentage: u8,
+        min_exit_price: u64,
+        exit_strategy: ExitStrategy,
+    ) -> Result<()> {
+        PumpTokenData::execute_strategic_exit(ctx, exit_percentage, min_exit_price, exit_strategy)
+    }
+
+    /// 📊 АНАЛИЗ OPTIMAL TIMING ДЛЯ PUMP
+    pub fn analyze_pump_timing(
+        ctx: Context<AnalyzeTiming>,
+    ) -> Result<()> {
+        let analysis = PumpTokenData::analyze_optimal_pump_timing(ctx)?;
+        
+        msg!("📊 Pump timing analysis completed");
+        msg!("Current phase: {:?}", analysis.current_phase);
+        msg!("FOMO readiness: {}/1000", analysis.fomo_readiness_score);
+        msg!("Recommended flash size: {}", analysis.recommended_flash_size);
+        
+        Ok(())
+    }
+
+    /// 🚀 КОМПЛЕКСНАЯ FLASH PUMP CAMPAIGN
+    pub fn execute_complete_flash_pump_campaign(
+        ctx: Context<CompletePumpCampaign>,
+        campaign_budget: u64,
+        target_peak_multiplier: u16, // 1000 = 10x, 10000 = 100x
+        campaign_duration_days: u8,
+    ) -> Result<()> {
+        msg!("🚀 EXECUTING COMPLETE FLASH PUMP CAMPAIGN");
+        msg!("Budget: {}, Target: {}x, Duration: {} days",
+             campaign_budget, target_peak_multiplier as f64 / 100.0, campaign_duration_days);
+        
+        let pump_token = &mut ctx.accounts.pump_token;
+        
+        // Фаза 1: Initial Flash Boost (25% бюджета)
+        let phase1_budget = campaign_budget * 25 / 100;
+        let phase1_target = 300; // 3x
+        
+        msg!("Phase 1 - Initial Boost: {} budget, {}x target", phase1_budget, phase1_target as f64 / 100.0);
+        
+        // Фаза 2: Growth Boost (35% бюджета)  
+        let phase2_budget = campaign_budget * 35 / 100;
+        let phase2_target = 500; // 5x from phase 1
+        
+        msg!("Phase 2 - Growth Boost: {} budget, {}x target", phase2_budget, phase2_target as f64 / 100.0);
+        
+        // Фаза 3: FOMO Trigger (40% бюджета)
+        let phase3_budget = campaign_budget * 40 / 100;
+        let phase3_target = target_peak_multiplier;
+        
+        msg!("Phase 3 - FOMO Trigger: {} budget, {}x target", phase3_budget, phase3_target as f64 / 100.0);
+        
+        // Рассчитываем ожидаемую прибыль
+        let team_tokens = pump_token.team_allocation;
+        let peak_price = pump_token.current_price * target_peak_multiplier as u64 / 100;
+        let max_exit_value = team_tokens * peak_price / 1_000_000;
+        
+        let total_costs = campaign_budget + (campaign_budget * 50 / 10000); // + flash fees
+        let net_profit = max_exit_value.saturating_sub(total_costs);
+        let roi = net_profit * 100 / total_costs;
+        
+        msg!("💰 CAMPAIGN PROJECTIONS:");
+        msg!("Peak price: ${}, Max exit value: {}", peak_price as f64 / 1_000_000.0, max_exit_value);
+        msg!("Total costs: {}, Net profit: {}, ROI: {}x", total_costs, net_profit, roi);
+        
+        if roi >= 1000 { // 10x ROI
+            msg!("🎉 CAMPAIGN HAS 10x+ ROI POTENTIAL!");
+        }
+        
+        Ok(())
     }
 }
 
