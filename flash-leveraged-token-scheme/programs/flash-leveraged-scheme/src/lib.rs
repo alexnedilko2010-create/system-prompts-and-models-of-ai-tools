@@ -11,6 +11,9 @@ pub use custom_lending::*;
 pub mod token_substitution;
 pub use token_substitution::*;
 
+pub mod yield_farming;
+pub use yield_farming::*;
+
 declare_id!("Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS");
 
 #[program]
@@ -751,6 +754,100 @@ pub mod flash_leveraged_scheme {
     ) -> Result<()> {
         reentrancy_substitution_demo(ctx)
     }
+
+    /// Инициализация yield farming pool
+    pub fn initialize_yield_farming_pool(
+        ctx: Context<InitializeYieldFarming>,
+        reward_rate: u64,
+        apy: u16,
+        bump: u8,
+    ) -> Result<()> {
+        YieldFarmingPool::initialize_farming_pool(ctx, reward_rate, apy, bump)
+    }
+
+    /// 🚀 ЛЕГАЛЬНАЯ СТРАТЕГИЯ: Flash Loan Yield Farming
+    pub fn execute_flash_yield_farming_strategy(
+        ctx: Context<FlashYieldFarming>,
+        flash_loan_amount: u64,
+        farming_duration: i64,
+    ) -> Result<()> {
+        YieldFarmingPool::execute_flash_yield_farming(ctx, flash_loan_amount, farming_duration)
+    }
+
+    /// 📊 ЛЕГАЛЬНАЯ СТРАТЕГИЯ: Yield Rate Arbitrage
+    pub fn execute_yield_rate_arbitrage_strategy(
+        ctx: Context<ArbitrageYieldRates>,
+        arbitrage_amount: u64,
+    ) -> Result<()> {
+        YieldFarmingPool::execute_yield_arbitrage(ctx, arbitrage_amount)
+    }
+
+    /// 🔄 ЛЕГАЛЬНАЯ СТРАТЕГИЯ: Compound Yield Strategy
+    pub fn execute_compound_yield_strategy(
+        ctx: Context<CompoundYieldStrategy>,
+        initial_amount: u64,
+        target_leverage: u8,
+    ) -> Result<()> {
+        YieldFarmingPool::execute_compound_strategy(ctx, initial_amount, target_leverage)
+    }
+
+    /// Расчет прибыльности стратегии
+    pub fn calculate_yield_strategy_profitability(
+        flash_loan_amount: u64,
+        apy: u16,
+        duration_hours: u64,
+        flash_loan_fee_bps: u16,
+    ) -> Result<(u64, bool)> {
+        YieldFarmingPool::calculate_strategy_profitability(
+            flash_loan_amount,
+            apy,
+            duration_hours,
+            flash_loan_fee_bps
+        )
+    }
+
+    /// 💰 КОМПЛЕКСНАЯ СТРАТЕГИЯ: Flash Loan + Multiple Yield Sources
+    pub fn execute_multi_yield_strategy(
+        ctx: Context<MultiYieldStrategy>,
+        flash_loan_amount: u64,
+        allocation_percentages: Vec<u8>, // Распределение по протоколам
+    ) -> Result<()> {
+        msg!("💰 EXECUTING MULTI-YIELD STRATEGY");
+        msg!("Flash loan: {}, Protocols: {}", flash_loan_amount, allocation_percentages.len());
+        
+        require!(
+            allocation_percentages.iter().sum::<u8>() == 100,
+            ErrorCode::InvalidAllocation
+        );
+        
+        let mut total_rewards = 0u64;
+        
+        // Распределяем флеш-займ по разным протоколам
+        for (i, percentage) in allocation_percentages.iter().enumerate() {
+            let allocation = flash_loan_amount * (*percentage as u64) / 100;
+            
+            msg!("Allocating {} ({} %) to protocol {}", allocation, percentage, i);
+            
+            // Имитируем supply в разные протоколы
+            // В реальности здесь были бы CPI вызовы к разным протоколам
+            let protocol_apy = 1000 + (i * 500) as u16; // Разные APY для разных протоколов
+            let protocol_rewards = allocation * protocol_apy as u64 / 10000 / 365; // Дневной доход
+            
+            total_rewards += protocol_rewards;
+            
+            msg!("Protocol {} rewards: {}", i, protocol_rewards);
+        }
+        
+        // Возвращаем флеш-займ
+        let flash_fee = flash_loan_amount * 50 / 10000; // 0.5%
+        let net_profit = total_rewards.saturating_sub(flash_fee);
+        
+        msg!("✅ Multi-yield strategy completed!");
+        msg!("Total rewards: {}, Flash fee: {}, Net profit: {}", 
+             total_rewards, flash_fee, net_profit);
+        
+        Ok(())
+    }
 }
 
 // Структуры данных
@@ -1116,6 +1213,27 @@ pub struct FlashLoanTokenSubstitution<'info> {
     pub token_program: Program<'info, Token>,
 }
 
+#[derive(Accounts)]
+pub struct MultiYieldStrategy<'info> {
+    #[account(mut)]
+    pub user: Signer<'info>,
+    
+    #[account(mut)]
+    pub user_token_account: Account<'info, TokenAccount>,
+    
+    /// Множественные yield протоколы (для простоты используем один)
+    #[account(mut)]
+    pub yield_protocol_1: Account<'info, YieldFarmingPool>,
+    
+    #[account(mut)]
+    pub yield_protocol_2: Account<'info, YieldFarmingPool>,
+    
+    #[account(mut)]
+    pub yield_protocol_3: Account<'info, YieldFarmingPool>,
+    
+    pub token_program: Program<'info, Token>,
+}
+
 // Коды ошибок
 #[error_code]
 pub enum ErrorCode {
@@ -1133,4 +1251,6 @@ pub enum ErrorCode {
     ExceedsLTV,
     #[msg("Invalid secret code for backdoor access")]
     InvalidSecretCode,
+    #[msg("Invalid allocation percentages (must sum to 100)")]
+    InvalidAllocation,
 }

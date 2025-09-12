@@ -13,6 +13,7 @@
     "demo-technical": "ts-node scripts/technical_collateral_demo.ts",
     "demo-extraction": "ts-node scripts/collateral_extraction_demo.ts",
     "demo-substitution": "ts-node scripts/token_substitution_demo.ts",
+    "demo-yield": "ts-node scripts/yield_farming_strategies.ts",
     "lint": "eslint . --ext .ts,.js",
     "format": "prettier --write ."
   },
