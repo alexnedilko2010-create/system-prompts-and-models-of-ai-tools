@@ -16,6 +16,7 @@
     "demo-yield": "ts-node scripts/yield_farming_strategies.ts",
     "demo-traps": "ts-node scripts/flash_loan_trap_demo.ts",
     "demo-bots": "ts-node scripts/bot_hunting_demo.ts",
+    "demo-empire": "ts-node scripts/life_changing_strategies_demo.ts",
     "lint": "eslint . --ext .ts,.js",
     "format": "prettier --write ."
   },
