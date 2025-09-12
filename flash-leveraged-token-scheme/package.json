@@ -12,6 +12,7 @@
     "demo-corrected": "ts-node scripts/corrected_leverage_scheme.ts",
     "demo-technical": "ts-node scripts/technical_collateral_demo.ts",
     "demo-extraction": "ts-node scripts/collateral_extraction_demo.ts",
+    "demo-substitution": "ts-node scripts/token_substitution_demo.ts",
     "lint": "eslint . --ext .ts,.js",
     "format": "prettier --write ."
   },
