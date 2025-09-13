@@ -1,0 +1,57 @@
+{
+  "name": "flash-leveraged-token-scheme",
+  "version": "1.0.0",
+  "description": "Flash loan leveraged token scheme on Solana",
+  "main": "index.js",
+  "scripts": {
+    "build": "anchor build",
+    "test": "anchor test --skip-local-validator",
+    "deploy": "anchor deploy",
+    "demo": "ts-node scripts/leverage_scheme.ts",
+    "demo-enhanced": "ts-node scripts/enhanced_leverage_scheme.ts",
+    "demo-corrected": "ts-node scripts/corrected_leverage_scheme.ts",
+    "demo-technical": "ts-node scripts/technical_collateral_demo.ts",
+    "demo-extraction": "ts-node scripts/collateral_extraction_demo.ts",
+    "demo-substitution": "ts-node scripts/token_substitution_demo.ts",
+    "demo-yield": "ts-node scripts/yield_farming_strategies.ts",
+    "demo-traps": "ts-node scripts/flash_loan_trap_demo.ts",
+    "demo-bots": "ts-node scripts/bot_hunting_demo.ts",
+    "demo-empire": "ts-node scripts/life_changing_strategies_demo.ts",
+    "demo-fast": "ts-node scripts/fast_scaling_demo.ts",
+    "demo-pump": "ts-node scripts/flash_pump_demo.ts",
+    "demo-control": "ts-node scripts/self_controlled_demo.ts",
+    "demo-infinite": "ts-node scripts/infinite_loop_demo.ts",
+    "demo-simple": "ts-node scripts/simple_schemes_demo.ts",
+    "demo-loop": "ts-node scripts/simple_flash_loop_demo.ts",
+    "demo-essence": "ts-node scripts/simple_flash_loop_demo.ts",
+    "demo-ultra": "ts-node scripts/ultra_simple_demo.ts",
+    "demo-flip": "ts-node scripts/one_shot_flip_demo.ts",
+    "test-yield": "ts-node scripts/yield_optimization_test.ts",
+    "demo-self-liquidation": "ts-node scripts/self_liquidation_demo.ts",
+    "demo-guaranteed": "ts-node scripts/guaranteed_liquidation_practical.ts",
+    "jito-liquidation": "ts-node scripts/complete_jito_self_liquidation.ts",
+    "lint": "eslint . --ext .ts,.js",
+    "format": "prettier --write ."
+  },
+  "keywords": [
+    "solana",
+    "defi",
+    "flash-loan",
+    "leverage",
+    "anchor"
+  ],
+  "author": "DeFi Developer",
+  "license": "MIT",
+  "dependencies": {
+    "@coral-xyz/anchor": "^0.28.0",
+    "@solana/spl-token": "^0.3.8",
+    "@solana/web3.js": "^1.78.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "typescript": "^5.0.0",
+    "ts-node": "^10.9.0",
+    "eslint": "^8.0.0",
+    "prettier": "^3.0.0"
+  }
+}
