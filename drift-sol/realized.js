@@ -91,11 +91,15 @@ async function main() {
   const qIn = new BN(25_000_000).mul(QUOTE_PRECISION);
   const { q1: qA1, b1: bA1, baseBought: baseBoughtA } = buyWithQuote(amm0, qIn);
   const ammAfterA = { ...amm0, quoteAssetReserve: qA1, baseAssetReserve: bA1 };
-  const { q1: qB1, b1: bB1 } = buyWithQuote(ammAfterA, qIn);
+  const { q1: qB1, b1: bB1, baseBought: baseBoughtB } = buyWithQuote(ammAfterA, qIn);
   const ammAfterB = { ...ammAfterA, quoteAssetReserve: qB1, baseAssetReserve: bB1 };
   const { q2: qA2, b2: bA2, quoteOut: quoteOutA } = sellBase(ammAfterB, baseBoughtA);
   const realizedChain = quoteOutA.sub(qIn);
   const priceAfterB = calculatePrice(bB1, qB1, amm0.pegMultiplier);
+  const priceAfterYourClose = calculatePrice(bA2, qA2, amm0.pegMultiplier);
+  // Other trader's mark-to-market after your close
+  const otherValueNow = baseBoughtB.mul(priceAfterYourClose).div(require('@drift-labs/sdk').AMM_RESERVE_PRECISION);
+  const otherMtm = otherValueNow.sub(qIn);
 
   console.log(JSON.stringify({
     price0: priceToNumber(price0),
@@ -113,9 +117,11 @@ async function main() {
     },
     youThenOther25m: {
       priceAfterOtherBuy: priceToNumber(priceAfterB),
+      priceAfterYourClose: priceToNumber(priceAfterYourClose),
       yourQuoteInUsd: quoteToNumber(qIn),
       yourQuoteOutUsd: quoteToNumber(quoteOutA),
-      realizedUsd: quoteToNumber(realizedChain)
+      realizedUsd: quoteToNumber(realizedChain),
+      otherMarkToMarketUsd: quoteToNumber(otherMtm)
     }
   }, null, 2));
 
