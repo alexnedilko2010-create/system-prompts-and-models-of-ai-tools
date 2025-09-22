@@ -157,6 +157,18 @@ async function main() {
   const { quoteOut: quoteOutB_A5 } = sellBase(ammAfterYourCloseA5, chainB1.baseBought);
   const otherRealizedA5 = quoteOutB_A5.sub(chainB1.qIn);
 
+  // Scenario: you +1%, other +0.1%, then you close before them
+  const chainA1a = buyToTargetPct(amm0, 1);
+  const chainB0_1a = buyToTargetPct(chainA1a.ammEnd, 0.1);
+  const afterB0_1amm = chainB0_1a.ammEnd;
+  const { q2: qCloseA1a_2, b2: bCloseA1a_2, quoteOut: quoteOutA1a } = sellBase(afterB0_1amm, chainA1a.baseBought);
+  const realizedYouA1a = quoteOutA1a.sub(chainA1a.qIn);
+  const priceAfterYourCloseA1a = calculatePrice(bCloseA1a_2, qCloseA1a_2, amm0.pegMultiplier);
+  const otherMtmA1a = chainB0_1a.baseBought.mul(priceAfterYourCloseA1a).div(require('@drift-labs/sdk').AMM_RESERVE_PRECISION).sub(chainB0_1a.qIn);
+  const ammAfterYourCloseA1a = { ...afterB0_1amm, quoteAssetReserve: qCloseA1a_2, baseAssetReserve: bCloseA1a_2 };
+  const { quoteOut: quoteOutB_A1a } = sellBase(ammAfterYourCloseA1a, chainB0_1a.baseBought);
+  const otherRealizedA1a = quoteOutB_A1a.sub(chainB0_1a.qIn);
+
   console.log(JSON.stringify({
     price0: priceToNumber(price0),
     target1pct: {
@@ -193,6 +205,13 @@ async function main() {
       yourRealizedUsd: quoteToNumber(realizedYouA5),
       otherMtmUsd: quoteToNumber(otherMtmA5),
       otherRealizedUsd: quoteToNumber(otherRealizedA5)
+    },
+    you1pct_other0_1pct_then_you_close: {
+      yourQuoteInUsd: quoteToNumber(chainA1a.qIn),
+      yourQuoteOutUsd: quoteToNumber(quoteOutA1a),
+      yourRealizedUsd: quoteToNumber(realizedYouA1a),
+      otherMtmUsd: quoteToNumber(otherMtmA1a),
+      otherRealizedUsd: quoteToNumber(otherRealizedA1a)
     }
   }, null, 2));
 
