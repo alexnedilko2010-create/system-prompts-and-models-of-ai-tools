@@ -42,6 +42,34 @@ async function main() {
     return { q2, b2, quoteOut };
   }
 
+  function buyToTargetPct(ammStart, pct) {
+    const pStart = calculatePrice(ammStart.baseAssetReserve, ammStart.quoteAssetReserve, ammStart.pegMultiplier);
+    const target = pStart.muln(100 + pct).divn(100);
+    let lo = new BN(0);
+    let hi = new BN(10_000).mul(QUOTE_PRECISION);
+    const max = new BN(1_000_000_000).mul(QUOTE_PRECISION);
+    for (let i = 0; i < 40; i++) {
+      const { q1, b1 } = buyWithQuote(ammStart, hi);
+      const p = calculatePrice(b1, q1, ammStart.pegMultiplier);
+      if (p.gte(target)) break;
+      hi = hi.muln(2);
+      if (hi.gte(max)) break;
+    }
+    let qL = lo, qR = hi;
+    for (let i = 0; i < 80; i++) {
+      const mid = qL.add(qR).divn(2);
+      const { q1, b1 } = buyWithQuote(ammStart, mid);
+      const p = calculatePrice(b1, q1, ammStart.pegMultiplier);
+      if (p.gte(target)) qR = mid; else qL = mid;
+      if (qR.sub(qL).lte(new BN(1000))) break;
+    }
+    const qIn = qR;
+    const { q1, b1, baseBought } = buyWithQuote(ammStart, qIn);
+    const ammEnd = { ...ammStart, quoteAssetReserve: q1, baseAssetReserve: b1 };
+    const pEnd = calculatePrice(b1, q1, ammStart.pegMultiplier);
+    return { qIn, baseBought, ammEnd, pEnd };
+  }
+
   async function realizedForTargetPctUp(pct) {
     const target = price0.muln(100 + pct).divn(100);
     // binary search for quoteIn to reach target
@@ -105,6 +133,18 @@ async function main() {
   const { q2: qB2, b2: bB2, quoteOut: quoteOutB } = sellBase(ammAfterYourClose, baseBoughtB);
   const otherRealized = quoteOutB.sub(qIn);
 
+  // Scenario: you +1%, other +0.5%, then you close before them
+  const chainA = buyToTargetPct(amm0, 1);
+  const chainB = buyToTargetPct(chainA.ammEnd, 0.5);
+  const afterBamm = chainB.ammEnd;
+  const { q2: qCloseA2, b2: bCloseA2, quoteOut: quoteOutAChain } = sellBase(afterBamm, chainA.baseBought);
+  const realizedYouChain = quoteOutAChain.sub(chainA.qIn);
+  const priceAfterYourCloseChain = calculatePrice(bCloseA2, qCloseA2, amm0.pegMultiplier);
+  const otherMtmChain = chainB.baseBought.mul(priceAfterYourCloseChain).div(require('@drift-labs/sdk').AMM_RESERVE_PRECISION).sub(chainB.qIn);
+  const ammAfterYourCloseChain = { ...afterBamm, quoteAssetReserve: qCloseA2, baseAssetReserve: bCloseA2 };
+  const { quoteOut: quoteOutBChain } = sellBase(ammAfterYourCloseChain, chainB.baseBought);
+  const otherRealizedChain = quoteOutBChain.sub(chainB.qIn);
+
   console.log(JSON.stringify({
     price0: priceToNumber(price0),
     target1pct: {
@@ -127,6 +167,13 @@ async function main() {
       realizedUsd: quoteToNumber(realizedChain),
       otherMarkToMarketUsd: quoteToNumber(otherMtm),
       otherRealizedUsd: quoteToNumber(otherRealized)
+    },
+    you1pct_other0_5pct_then_you_close: {
+      yourQuoteInUsd: quoteToNumber(chainA.qIn),
+      yourQuoteOutUsd: quoteToNumber(quoteOutAChain),
+      yourRealizedUsd: quoteToNumber(realizedYouChain),
+      otherMtmUsd: quoteToNumber(otherMtmChain),
+      otherRealizedUsd: quoteToNumber(otherRealizedChain)
     }
   }, null, 2));
 
