@@ -87,6 +87,16 @@ async function main() {
   const resPct = await realizedForTargetPctUp(1);
   const res25 = await realizedForFixedQuote(25_000_000);
 
+  // Scenario: You buy $25M, then another trader buys $25M, then you close before them
+  const qIn = new BN(25_000_000).mul(QUOTE_PRECISION);
+  const { q1: qA1, b1: bA1, baseBought: baseBoughtA } = buyWithQuote(amm0, qIn);
+  const ammAfterA = { ...amm0, quoteAssetReserve: qA1, baseAssetReserve: bA1 };
+  const { q1: qB1, b1: bB1 } = buyWithQuote(ammAfterA, qIn);
+  const ammAfterB = { ...ammAfterA, quoteAssetReserve: qB1, baseAssetReserve: bB1 };
+  const { q2: qA2, b2: bA2, quoteOut: quoteOutA } = sellBase(ammAfterB, baseBoughtA);
+  const realizedChain = quoteOutA.sub(qIn);
+  const priceAfterB = calculatePrice(bB1, qB1, amm0.pegMultiplier);
+
   console.log(JSON.stringify({
     price0: priceToNumber(price0),
     target1pct: {
@@ -100,6 +110,12 @@ async function main() {
       quoteInUsd: quoteToNumber(res25.qIn),
       quoteOutUsd: quoteToNumber(res25.quoteOut),
       realizedUsd: quoteToNumber(res25.realized),
+    },
+    youThenOther25m: {
+      priceAfterOtherBuy: priceToNumber(priceAfterB),
+      yourQuoteInUsd: quoteToNumber(qIn),
+      yourQuoteOutUsd: quoteToNumber(quoteOutA),
+      realizedUsd: quoteToNumber(realizedChain)
     }
   }, null, 2));
 
