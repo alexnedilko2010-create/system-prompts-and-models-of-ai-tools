@@ -1,0 +1,17 @@
+{
+  "name": "drift-sol",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "@drift-labs/sdk": "^2.139.0-beta.0",
+    "@solana/web3.js": "^1.98.4",
+    "bn.js": "^5.2.2"
+  }
+}
