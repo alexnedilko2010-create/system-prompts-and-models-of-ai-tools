@@ -100,6 +100,10 @@ async function main() {
   // Other trader's mark-to-market after your close
   const otherValueNow = baseBoughtB.mul(priceAfterYourClose).div(require('@drift-labs/sdk').AMM_RESERVE_PRECISION);
   const otherMtm = otherValueNow.sub(qIn);
+  // Other trader closes immediately after your close
+  const ammAfterYourClose = { ...ammAfterB, quoteAssetReserve: qA2, baseAssetReserve: bA2 };
+  const { q2: qB2, b2: bB2, quoteOut: quoteOutB } = sellBase(ammAfterYourClose, baseBoughtB);
+  const otherRealized = quoteOutB.sub(qIn);
 
   console.log(JSON.stringify({
     price0: priceToNumber(price0),
@@ -121,7 +125,8 @@ async function main() {
       yourQuoteInUsd: quoteToNumber(qIn),
       yourQuoteOutUsd: quoteToNumber(quoteOutA),
       realizedUsd: quoteToNumber(realizedChain),
-      otherMarkToMarketUsd: quoteToNumber(otherMtm)
+      otherMarkToMarketUsd: quoteToNumber(otherMtm),
+      otherRealizedUsd: quoteToNumber(otherRealized)
     }
   }, null, 2));
 
