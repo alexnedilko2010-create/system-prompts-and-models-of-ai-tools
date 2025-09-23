@@ -70,6 +70,34 @@ async function main() {
     return { qIn, baseBought, ammEnd, pEnd };
   }
 
+  function shortToTargetPct(ammStart, pctDown) {
+    // move price down by pctDown: target = pStart * (1 - pctDown)
+    const pStart = calculatePrice(ammStart.baseAssetReserve, ammStart.quoteAssetReserve, ammStart.pegMultiplier);
+    const target = pStart.muln(100000 - Math.floor(pctDown * 1000)).divn(100000); // support decimals, pctDown e.g. 1.0 -> 1.0%
+    let lo = new BN(0);
+    // heuristic base amount bound: relate to quote needed; start with 10k SOL equivalent
+    let hi = ammStart.baseAssetReserve.divn(1000); // rough bound
+    const maxIter = 80;
+    for (let i = 0; i < 40; i++) {
+      const [q1, b1] = calculateAmmReservesAfterSwap(ammStart, 'base', hi, SwapDirection.ADD);
+      const p = calculatePrice(b1, q1, ammStart.pegMultiplier);
+      if (p.lte(target)) break;
+      hi = hi.muln(2);
+    }
+    for (let i = 0; i < maxIter; i++) {
+      const mid = lo.add(hi).divn(2);
+      const [q1, b1] = calculateAmmReservesAfterSwap(ammStart, 'base', mid, SwapDirection.ADD);
+      const p = calculatePrice(b1, q1, ammStart.pegMultiplier);
+      if (p.lte(target)) hi = mid; else lo = mid;
+      if (hi.sub(lo).lte(new BN(1000))) break;
+    }
+    const baseIn = hi;
+    const [q1, b1] = calculateAmmReservesAfterSwap(ammStart, 'base', baseIn, SwapDirection.ADD);
+    const ammEnd = { ...ammStart, quoteAssetReserve: q1, baseAssetReserve: b1 };
+    const pEnd = calculatePrice(b1, q1, ammStart.pegMultiplier);
+    return { baseIn, ammEnd, pEnd };
+  }
+
   async function realizedForTargetPctUp(pct) {
     const target = price0.muln(100 + pct).divn(100);
     // binary search for quoteIn to reach target
@@ -157,6 +185,30 @@ async function main() {
   const { quoteOut: quoteOutB_A5 } = sellBase(ammAfterYourCloseA5, chainB1.baseBought);
   const otherRealizedA5 = quoteOutB_A5.sub(chainB1.qIn);
 
+  // New: our +Δ1, our +Δ2, other short −Δshort (all vAMM)
+  function scenarioTwoLongsThenShort(pct1, pct2, pctShort) {
+    const a1 = buyToTargetPct(amm0, pct1);
+    const a2 = buyToTargetPct(a1.ammEnd, pct2);
+    const s = shortToTargetPct(a2.ammEnd, pctShort);
+    const totalQIn = a1.qIn.add(a2.qIn);
+    const totalBase = a1.baseBought.add(a2.baseBought);
+    // Our close AFTER the short
+    const afterShortClose = sellBase(s.ammEnd, totalBase);
+    const pnlAfter = afterShortClose.quoteOut.sub(totalQIn);
+    // Our close BEFORE the short
+    const beforeShortClose = sellBase(a2.ammEnd, totalBase);
+    const pnlBefore = beforeShortClose.quoteOut.sub(totalQIn);
+    return {
+      pct1, pct2, pctShort,
+      ourPnlAfterUsd: quoteToNumber(pnlAfter),
+      ourPnlBeforeUsd: quoteToNumber(pnlBefore)
+    };
+  }
+
+  const vammOnly_1_1_vs_short1 = scenarioTwoLongsThenShort(1.0, 1.0, 1.0);
+  const vammOnly_1_1_vs_short2 = scenarioTwoLongsThenShort(1.0, 1.0, 2.0);
+  const vammOnly_1_05_vs_short1 = scenarioTwoLongsThenShort(1.0, 0.5, 1.0);
+
   // Scenario: you +1%, other +0.1%, then you close before them
   const chainA1a = buyToTargetPct(amm0, 1);
   const chainB0_1a = buyToTargetPct(chainA1a.ammEnd, 0.1);
@@ -212,6 +264,11 @@ async function main() {
       yourRealizedUsd: quoteToNumber(realizedYouA1a),
       otherMtmUsd: quoteToNumber(otherMtmA1a),
       otherRealizedUsd: quoteToNumber(otherRealizedA1a)
+    },
+    vamm_only_two_longs_then_short: {
+      ourLong1_1pct_ourLong2_1pct_vsShort_1pct: vammOnly_1_1_vs_short1,
+      ourLong1_1pct_ourLong2_1pct_vsShort_2pct: vammOnly_1_1_vs_short2,
+      ourLong1_1pct_ourLong2_0_5pct_vsShort_1pct: vammOnly_1_05_vs_short1
     }
   }, null, 2));
 
