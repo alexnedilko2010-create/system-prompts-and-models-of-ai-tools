@@ -1,3 +1,31 @@
+## Neural Style Transfer: make image 1 look like the style of image 2
+
+This utility applies the visual style of a reference image (cartoon-like example) to your photo.
+
+### 1) Prepare images
+- Place your content photo (картинка 1) as `assets/input/content.jpg`.
+- Place the style image (картинка 2) as `assets/style/style.jpg`.
+
+### 2) Install dependencies
+```bash
+python -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt
+```
+
+### 3) Run
+```bash
+python style_transfer.py --steps 500 --style_weight 12000 --max_size 896 --device cuda
+```
+
+Output will be saved to `assets/output/stylized.jpg`.
+
+### Notes
+- GPU is recommended. If unavailable, add `--device cpu`.
+- You can tune:
+  - `--steps`: more steps = stronger style, longer time.
+  - `--style_weight`: higher = more stylization; lower = more content preserved.
+  - `--tv_weight`: add small value (e.g., `1e-6`) for extra smoothness.
+
 # **System Prompts and Models of AI Tools**  
 
 ---
